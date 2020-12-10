@@ -60,46 +60,55 @@ goal: to find the path to fill and to do so with lowest cost.
 				path = G[path.prevNode];
 			}
 			// need to find the max flow that can go on this path 
-			Integer maxFlow = findMaxFlow(forFlow); 
+			LinkedList<Integer> copy = new LinkedList(forFlow);
 			Iterator<EdgeInfo> itr = G[forFlow.removeFirst()].succ.iterator();// gets to source
 			Integer removed = forFlow.removeFirst();// to check for next place for source
+			Integer maxFlow = removed.distance;// to set for the first path 
+			EdgeInfo previousOnPath = null; 
 			while(itr.hasNext()){
 				EdgeInfo next = itr.next();
 				if (next.to == removed){
-					next.reduceResidue(maxFlow);
-					if (forFlow.isEmpty()) break;
-					else {
-						itr = G[removed].succ.iterator();
-						removed = forFlow.removeFirst();
+					if (maxFlow > next.residue){// if there's more flow than what can go forward
+						Integer backflow = next.reduceResidue(maxFlow);// how much we got?
+						//reverseMaxFlow(forFlow, removed, maxFlow - backFlow);// to make flow in past passes, smaller (for the path, where to stop, size) [maybe later]]
+						while(itr.hasNext()){		// search for nodes that have: 
+							EdgeInfo prev = itr.next();
+							if (prev.capacity == 0 && (-prev.cost) > previousOnPath.cost){// another path that goes back and it's cost is greater
+								Iterator<EdgeInfo> itr2 = G[prev.to].succ.iterator();
+								while(itr2.hasNext()){							// find path that leads to current node. 
+									EdgeInfo moreExpensive = itr2.next();
+									if(moreExpensive.to == removed){
+										backFlow = moreExpensive.reduceResidue(backflow);
+										break; 
+									}
+								}
+							}
+						}
+						if (backFlow != 0) reverseMaxFlow(copy, removed, maxFlow + backFlow);//needs to decrease the flow through the path (if leftover backFlow) 
 					}
+					else next.reduceResidue(maxFlow);// else all you have to do is reduce the residue and then move to next one 
+					if (forFlow.isEmpty()) break; //you've reached the end no more needed 
+					itr = G[next.to].succ.iterator();
+					removed = forFlow.removeFirst();
+					previousOnPath = next; 
 				}
 			}
-			/***
-			will need:
-			- check for residue
-			- alter paths if needed 
-				- might need to alter the DijkstraNeg() as well. to check for residue (cause we can't go forward if no residue 
-			***/
 		}
 	}
 	
-	private Integer findMaxFlow(LinkedList<Integer> forFlow){
-		Integer max = INFINITY;
-		LinkedList<Integer> copy = new LinkedList(forFlow);// don't alter the previous one 
-		Iterator<EdgeInfo> itr = G[copy.removeFirst()].succ.iterator();// we will look at the beginning of the path's successors
-		int removed = copy.removeFirst();// this is the successor we are looking for 
-		while(itr.hasNext()){
-			EdgeInfo next = itr.next();
-			if (next.to == removed){// if the edge goes to the next one in the path
-				if (max > next.residue) max = next.residue;// if max can only smaller, we make it so 
-				if (copy.isEmpty()) break;// if the linkelist is empty we don't need to keep going we're done
-				else {
-					itr = G[removed].succ.iterator();// the iterator moves to what next part of the linked list 
-					removed = copy.removeFirst();// removed will be updated
-				}
+	private void reverseMaxFlow(LinkedList<Integer> forFlow, Integer removed, Integer RmaxFlow){
+		LinkedList<Integer> copy = new LinkedList(forFlow);
+		Iterator<EdgeInfo> itr = G[copy.removeFirst()].succ.iterator();
+		Integer next = copy.removeFirst();
+		while (itr.hasNext()){
+			EdgedInfo nextEdge = itr.next();
+			if(nextEdge.to == next){
+				nextEdge.residue = capacity - RmaxFlow; // not sure this is right 
+				if (nextEdge.to == removed) break; // if you've gotten back to your current node 
+				itr = G[nextEdge.to].succ.iterator();
+				next = copy.removeFirst();
 			}
 		}
-		return max; 
 	}
 	
 	private boolean DijkstraNeg() {

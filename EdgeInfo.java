@@ -12,10 +12,20 @@ public class EdgeInfo {
         return "Edge " + from + "->" + to + " ("+ capacity + ", " + cost + ") " ;
     }
 	public int reduceResidue(int flow){
-		if (flow <= residue)residue -= flow; // if it's smaller will reduce residue
-		else {// else we get back flow 
-			flow = residue - flow ;
-			residue = 0; // this will mean that this path is no longer fillable 
+		if (flow >= 0){
+			if (flow <= residue)residue -= flow; // if it's smaller will reduce residue
+			else {// else we make back flow 
+				flow = residue - flow ;
+				residue = 0; // this will mean that this path is no longer fillable 
+			}
+		}
+		else{// if flow negative 
+			residue -= flow; 
+			if (residue > capcity){//only if for adding backflow 
+				flow = capacity - residue;
+				residue = capacity; 
+			}
+			else flow = 0; 
 		}
 		return flow;// if it's negative we get a backflow 
 	}
