@@ -1,5 +1,6 @@
 import java.io.File;
 import java.util.Scanner;
+import java.util.*;
 
 public class FlowGraph {
     int vertexCt;  // Number of vertices in the graph.
@@ -7,6 +8,8 @@ public class FlowGraph {
     String graphName;  //The file from which the graph was created.
     int maxFlowFromSource;
     int maxFlowIntoSink;
+	int [][] resGraph; 
+	int TotalSpace; 
 
 
     public FlowGraph() {
@@ -14,6 +17,8 @@ public class FlowGraph {
         this.graphName = "";
         this.maxFlowFromSource = 0;
         this.maxFlowIntoSink = 0;
+		//this.resGraph = new int [0][0];
+		this.TotalSpace = 0; 
     }
 
     /**
@@ -28,6 +33,8 @@ public class FlowGraph {
         }
         this.maxFlowFromSource = 0;
         this.maxFlowIntoSink = 0;
+		//this.resGraph = new int[vertexCt][vertexCt];
+		this.TotalSpace = 0; 
     }
 /*************'
 ***************
@@ -36,9 +43,13 @@ public class FlowGraph {
 *********/
     public static void main(String[] args) {
         FlowGraph graph1 = new FlowGraph();
-        graph1.makeGraph("group0.txt");
-        System.out.println(graph1.toString());
-		graph1.findFlows();
+		String [] texts = {"group0.txt", "group1.txt", "group4.txt", "group5.txt", "group6.txt", "group7.txt", "group8.txt", "bellman0.txt"};
+		for(int i = 1; i < 2; i++){
+			graph1.makeGraph(texts[i]);
+			System.out.println(graph1.toString());
+			graph1.findFlows(texts[i]);
+			// graph1.printEdges();
+		}
     }
 /***********
 ************
@@ -48,94 +59,94 @@ public class FlowGraph {
 /***
 goal: to find the path to fill and to do so with lowest cost. 
 ***/
-	public void findFlows(){
-		// need to find shortest path with cost
-		StringBuilder Pathes = new StringBuilder();
+	public void findFlows(String filename){
+		int flow = 0;
+		int totalFlow = 0; 
+		int cost = 0; 
 		while(DijkstraNeg()){
-			// start at beginning and mark nodes as visited
-			LinkedList<Integer> forFlow = new LinkedList();
-			GraphNode path = G[vertexCt-1]; // the end node
-			while(path.nodeID != 0){// makes the path
-				forFlow.addFirst(path.nodeID);
-				path = G[path.prevNode];
-			}
-			// need to find the max flow that can go on this path 
-			LinkedList<Integer> copy = new LinkedList(forFlow);
-			Iterator<EdgeInfo> itr = G[forFlow.removeFirst()].succ.iterator();// gets to source
-			Integer removed = forFlow.removeFirst();// to check for next place for source
-			Integer maxFlow = removed.distance;// to set for the first path 
-			EdgeInfo previousOnPath = null; 
-			while(itr.hasNext()){
-				EdgeInfo next = itr.next();
-				if (next.to == removed){
-					if (maxFlow > next.residue){// if there's more flow than what can go forward
-						Integer backflow = next.reduceResidue(maxFlow);// how much we got?
-						//reverseMaxFlow(forFlow, removed, maxFlow - backFlow);// to make flow in past passes, smaller (for the path, where to stop, size) [maybe later]]
-						while(itr.hasNext()){		// search for nodes that have: 
-							EdgeInfo prev = itr.next();
-							if (prev.capacity == 0 && (-prev.cost) > previousOnPath.cost){// another path that goes back and it's cost is greater
-								Iterator<EdgeInfo> itr2 = G[prev.to].succ.iterator();
-								while(itr2.hasNext()){							// find path that leads to current node. 
-									EdgeInfo moreExpensive = itr2.next();
-									if(moreExpensive.to == removed){
-										backFlow = moreExpensive.reduceResidue(backflow);
-										break; 
-									}
-								}
-							}
-						}
-						if (backFlow != 0) reverseMaxFlow(copy, removed, maxFlow + backFlow);//needs to decrease the flow through the path (if leftover backFlow) 
-					}
-					else next.reduceResidue(maxFlow);// else all you have to do is reduce the residue and then move to next one 
-					if (forFlow.isEmpty()) break; //you've reached the end no more needed 
-					itr = G[next.to].succ.iterator();
-					removed = forFlow.removeFirst();
-					previousOnPath = next; 
-				}
-			}
+			flow = lowestFlow();
+			//System.out.println("flow: " + flow);
+			cost += fixCost(flow);
+			totalFlow += flow; 
+			System.out.println("found flow " + flow + ":" + fixFlow(flow));
 		}
+		System.out.println(filename + "Max Flow SPACE " + Math.min(maxFlowFromSource,maxFlowIntoSink) + " assigned " + totalFlow);
+		printEdges(cost);
 	}
-	
-	private void reverseMaxFlow(LinkedList<Integer> forFlow, Integer removed, Integer RmaxFlow){
-		LinkedList<Integer> copy = new LinkedList(forFlow);
-		Iterator<EdgeInfo> itr = G[copy.removeFirst()].succ.iterator();
-		Integer next = copy.removeFirst();
-		while (itr.hasNext()){
-			EdgedInfo nextEdge = itr.next();
-			if(nextEdge.to == next){
-				nextEdge.residue = capacity - RmaxFlow; // not sure this is right 
-				if (nextEdge.to == removed) break; // if you've gotten back to your current node 
-				itr = G[nextEdge.to].succ.iterator();
-				next = copy.removeFirst();
+	private int lowestFlow(){
+		int currNode = vertexCt - 1; 
+		int flow = 9999;
+		int prev; 
+		while (G[currNode].prevNode != -1){
+			prev = G[currNode].prevNode;
+			if (flow > getCapacity(prev, currNode)){
+				flow = getCapacity(prev, currNode);
 			}
+			currNode = prev; 
 		}
+		if (currNode != 0){
+			flow = 0;
+		}
+		return flow;
+	}
+	private int fixCost(int flow){
+		int currNode = vertexCt - 1;
+		int prev; 
+		int pathCost = 0; 
+		while (G[currNode].prevNode != -1){
+			prev = G[currNode].prevNode;
+			pathCost += getCost(prev, currNode);
+			currNode = prev; 
+		}
+		int totalCost = pathCost * flow; 
+		return totalCost;
+	}
+	private String fixFlow(int flow){
+		int currNode = vertexCt-1; 
+		StringBuilder str = new StringBuilder();
+		int prev;
+		while (G[currNode].prevNode != -1){
+			prev = G[currNode].prevNode;
+			resGraph[prev][currNode] -= flow;
+			resGraph[currNode][prev] += flow; 
+			str.insert(0, " " + currNode);
+			currNode = prev;
+		}
+		return str.toString();
 	}
 	
 	private boolean DijkstraNeg() {
-    Queue<Integer> q = new Queue;
-    for (int i = 0; i < G.size(); i++) {
-        G[i].distance = INFINITY;
+    Queue<Integer> q = new LinkedList<Integer>();// in- out order not priority
+    for (int i = 0; i < G.length; i++) {
+        G[i].distance = 9999;// for infinity
         G[i].prevNode = -1;  // Each node stored its predecessor in the shortest path
     } // will need because I need to reset prevNode 
     G[0].distance = 0;
-    q.enqueue(G[0]);
+    q.add(G[0].nodeID);
     while (!q.isEmpty()) {  // while anything has changed, keep updating
-        Integer v = q.dequeue();
+        Integer v = q.remove();
 		Iterator<EdgeInfo> itr = G[v].succ.iterator();
         while (itr.hasNext()){
 			EdgeInfo next = itr.next();
-			if (next.residue != 0){// if the path still has pushing room 
+			if (resGraph[next.from][next.to] != 0){// if the path still has pushing room 
 				if (G[v].distance + next.cost < G[next.to].distance){// if distance from source + distance to next node is less than the distance established  at next node 
 					G[next.to].distance = G[v].distance + next.cost;
 					G[next.to].prevNode = G[v].nodeID;
-					q.enqueue(G[next.to]);  // the distance to w has changed so its successors are updated
+					q.add(G[next.to].nodeID);  // the distance to w has changed so its successors are updated
+					//System.out.println("printed queue" + q);
 				}
 			}
         }
     }
-    return G[vertexCt-1].pred >= 0;  // Did you find a path to the sink?
+    return G[vertexCt-1].prevNode >= 0;  // Did you find a path to the sink?
 }
 
+	public void printEdges(int total){
+		for(int i = 0; i < vertexCt; i++){
+			G[i].printEdge(vertexCt, resGraph, i);
+		}
+		System.out.println("TotalCost = " + total);
+	}
 	
     public int getVertexCt() {
         return vertexCt;
@@ -207,6 +218,7 @@ goal: to find the path to fill and to do so with lowest cost.
             Scanner reader = new Scanner(new File(filename));
             vertexCt = reader.nextInt();
             G = new GraphNode[vertexCt];
+			resGraph = new int[vertexCt][vertexCt];
             for (int i = 0; i < vertexCt; i++) {
                 G[i] = new GraphNode(i);
             }
@@ -217,6 +229,9 @@ goal: to find the path to fill and to do so with lowest cost.
                 int cost = reader.nextInt();
                 G[v1].addEdge(v1, v2, cap, cost);
                 G[v2].addEdge(v2, v1, 0, -cost);
+				resGraph[v1][v2] = cap;
+				resGraph[v2][v1] = 0; 
+				TotalSpace += cap; 
                 if (v1 == 0) maxFlowFromSource += cap;
                 if (v2 == vertexCt - 1) maxFlowIntoSink += cap;
             }

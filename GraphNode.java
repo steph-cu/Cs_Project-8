@@ -52,6 +52,15 @@ public class GraphNode {
         }
         return 0;
     }
+	
+	public void printEdge(int vertexCt, int[][] resGraph, int i){
+		Iterator<EdgeInfo> itr = succ.iterator();
+		int assigned = 0; 
+		for (int j = 0; j < vertexCt; j++){
+			assigned = getCapacity(j) - resGraph[i][j];
+			if (assigned > 0) System.out.println("Edge (" + i + "," + j +") assigned " + assigned + "(" + getCost(j) + ")");
+		} 
+	}
 
     static int INF = 9999;
     public int nodeID;
